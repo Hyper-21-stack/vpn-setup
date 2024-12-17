@@ -69,7 +69,12 @@ else
         resolv_conf="/run/systemd/resolve/resolv.conf"
 fi
 # Extract nameservers and provide them in the required format
-dns="8.8.8.8, 8.8.4.4"
+dns=$(grep -v '^#\|^;' "$resolv_conf" | grep '^nameserver' | grep -v '127.0.0.53' | grep -oE '[0-9]{1,3}(\.[0-9]{1,3}){3}' | xargs | sed -e 's/ /, /g')
+dns1="8.8.8.8, 8.8.4.4"
+dns2="1.1.1.1, 1.0.0.1"
+dns3="208.67.222.222, 208.67.220.220"
+dns4="9.9.9.9, 149.112.112.112"
+dns5="94.140.14.14, 94.140.15.15"
 }
 new_client_setup () {
         # Given a list of the assigned internal IPv4 addresses, obtain the lowest still
@@ -101,6 +106,11 @@ EOF
 [Interface]
 Address = 10.7.0.$octet/24$(grep -q 'fddd:2c4:2c4:2c4::1' /etc/wireguard/wg0.conf && echo ", fddd:2c4:2c4:2c4::$octet/64")
 DNS = $dns
+DNS = $dns1
+DNS = $dns2
+DNS = $dns3
+DNS = $dns4
+DNS = $dns5
 PrivateKey = $key
 
 [Peer]
