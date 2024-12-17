@@ -92,6 +92,21 @@ new_client_setup () {
 PublicKey = $(wg pubkey <<< $key)
 PresharedKey = $psk
 AllowedIPs = 10.7.0.$octet/32$(grep -q 'fddd:2c4:2c4:2c4::1' /etc/wireguard/wg0.conf && echo ", fddd:2c4:2c4:2c4::$octet/128")
+
+[Peer]
+PublicKey = $(wg pubkey <<< $key)
+PresharedKey = $psk
+AllowedIPs = 10.7.0.$octet/32
+
+[Peer]
+PublicKey = $(wg pubkey <<< $key)
+PresharedKey = $psk
+AllowedIPs = 10.7.0.$octet/32
+
+[Peer]
+PublicKey = $(wg pubkey <<< $key)
+PresharedKey = $psk
+AllowedIPs = 10.7.0.$octet/32
 # END_PEER $client
 EOF
         # Create client configuration
@@ -120,10 +135,9 @@ if [[ ! -e /etc/wireguard/wg0.conf ]]; then
                 apt-get update
                 apt-get install -y wget
         fi
-        rm -rf menu /usr/bin/menu; wget "https://raw.githubusercontent.com/MurRtriX/riX/main/o/menu" -O menu && chmod 755 menu; mv menu /usr/bin/menu; chmod 755 /usr/bin/menu
-        clear && clear
+        clear
         figlet -kE *MTN* | lolcat
-        echo -e "\033[1;33m Lion of Judah Net Wireguard\033[0m"
+        echo -e "\033[1;33mResleeved Net Wireguard\033[0m"
         # If system has a single IPv4, it is selected automatically. Else, ask the user
         if [[ $(ip -4 addr | grep inet | grep -vEc '127(\.[0-9]{1,3}){3}') -eq 1 ]]; then
                 ip=$(ip -4 addr | grep inet | grep -vE '127(\.[0-9]{1,3}){3}' | cut -d '/' -f 1 | grep -oE '[0-9]{1,3}(\.[0-9]{1,3}){3}')
@@ -169,9 +183,9 @@ if [[ ! -e /etc/wireguard/wg0.conf ]]; then
                 echo "$port: invalid port."
                 read -p "$(echo -e "\033[1;32mConfigure Remote Port(\033[1;33m36718\033[1;32m): \033[0m")" port
         done
-        [[ -z "$port" ]] && port="9201"
+        [[ -z "$port" ]] && port="36718"
         echo -e "\033[1;33mPerforming system updates and upgrades...\033[0m"
-        default_client="Lion of Judah "
+        default_client="Resleeved"
         # Allow a limited lenght and set of characters to avoid conflicts
         client=$(sed 's/[^0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-]/_/g' <<< "$default_client" | cut -c-15)
         [[ -z "$client" ]] && client="client"
@@ -355,7 +369,7 @@ EOF
         figlet -kE *MTN* | lolcat
         echo -e "\033[1;33mResleeved Net Wireguard QR Code\033[0m"
         echo
-        qrencode -t ANSI256UTF8 < /etc/Wire/"$client.conf"
+        qrencode -t ANSIUTF8 < /etc/Wire/"$client.conf"
         echo
         echo -e "\033[1;36m\xE2\x86\x91Snap this QR code and Import in a Wireguard Client\033[0m"
 else
@@ -389,7 +403,7 @@ else
                         # Append new client configuration to the WireGuard interface
                         wg addconf wg0 <(sed -n "/^# BEGIN_PEER $client/,/^# END_PEER $client/p" /etc/wireguard/wg0.conf)
                         echo
-                        qrencode -t ANSI256UTF8 < /etc/Wire/"$client.conf"
+                        qrencode -t ANSIUTF8 < /etc/Wire/"$client.conf"
                         echo -e '\xE2\x86\x91 That is a QR code containing your client configuration.'
                         echo "$client added"
                         exit
