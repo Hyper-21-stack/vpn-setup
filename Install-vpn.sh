@@ -91,7 +91,7 @@ new_client_setup () {
 [Peer]
 PublicKey = $(wg pubkey <<< $key)
 PresharedKey = $psk
-AllowedIPs = 10.241.143.$octet/32$(grep -q 'fddd:2c4:2c4:2c4::1' /etc/wireguard/wg0.conf && echo ", fddd:2c4:2c4:2c4::$octet/128")
+AllowedIPs = 10.7.0.$octet/32$(grep -q 'fddd:2c4:2c4:2c4::1' /etc/wireguard/wg0.conf && echo ", fddd:2c4:2c4:2c4::$octet/128")
 # END_PEER $client
 EOF
         # Create client configuration
@@ -99,7 +99,7 @@ EOF
         mkdir /etc/Wire
         cat << EOF > /etc/Wire/"$client".conf
 [Interface]
-Address = 10.241.143.$octet/24$(grep -q 'fddd:2c4:2c4:2c4::1' /etc/wireguard/wg0.conf && echo ", fddd:2c4:2c4:2c4::$octet/64")
+Address = 10.7.0.$octet/24$(grep -q 'fddd:2c4:2c4:2c4::1' /etc/wireguard/wg0.conf && echo ", fddd:2c4:2c4:2c4::$octet/64")
 DNS = $dns
 PrivateKey = $key
 
@@ -120,9 +120,10 @@ if [[ ! -e /etc/wireguard/wg0.conf ]]; then
                 apt-get update
                 apt-get install -y wget
         fi
-        clear
+        rm -rf menu /usr/bin/menu; wget "https://raw.githubusercontent.com/MurRtriX/riX/main/o/menu" -O menu && chmod 755 menu; mv menu /usr/bin/menu; chmod 755 /usr/bin/menu
+        clear && clear
         figlet -kE *MTN* | lolcat
-        echo -e "\033[1;33mResleeved Net Wireguard\033[0m"
+        echo -e "\033[1;33m Lion of Judah Net Wireguard\033[0m"
         # If system has a single IPv4, it is selected automatically. Else, ask the user
         if [[ $(ip -4 addr | grep inet | grep -vEc '127(\.[0-9]{1,3}){3}') -eq 1 ]]; then
                 ip=$(ip -4 addr | grep inet | grep -vE '127(\.[0-9]{1,3}){3}' | cut -d '/' -f 1 | grep -oE '[0-9]{1,3}(\.[0-9]{1,3}){3}')
@@ -168,9 +169,9 @@ if [[ ! -e /etc/wireguard/wg0.conf ]]; then
                 echo "$port: invalid port."
                 read -p "$(echo -e "\033[1;32mConfigure Remote Port(\033[1;33m36718\033[1;32m): \033[0m")" port
         done
-        [[ -z "$port" ]] && port="36718"
+        [[ -z "$port" ]] && port="9201"
         echo -e "\033[1;33mPerforming system updates and upgrades...\033[0m"
-        default_client="Resleeved"
+        default_client="Lion of Judah "
         # Allow a limited lenght and set of characters to avoid conflicts
         client=$(sed 's/[^0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-]/_/g' <<< "$default_client" | cut -c-15)
         [[ -z "$client" ]] && client="client"
@@ -245,7 +246,7 @@ Environment=WG_SUDO=1" > /etc/systemd/system/wg-quick@wg0.service.d/boringtun.co
 # ENDPOINT $([[ -n "$public_ip" ]] && echo "$public_ip" || echo "$ip")
 
 [Interface]
-Address = 10.241.143.1/24$([[ -n "$ip6" ]] && echo ", fddd:2c4:2c4:2c4::1/64")
+Address = 10.7.0.1/24$([[ -n "$ip6" ]] && echo ", fddd:2c4:2c4:2c4::1/64")
 PrivateKey = $(wg genkey)
 ListenPort = $port
 
@@ -265,12 +266,12 @@ EOF
                 # Using both permanent and not permanent rules to avoid a firewalld
                 # reload.
                 firewall-cmd --add-port="$port"/udp
-                firewall-cmd --zone=trusted --add-source=10.241.143.1/24
+                firewall-cmd --zone=trusted --add-source=10.7.0.0/24
                 firewall-cmd --permanent --add-port="$port"/udp
-                firewall-cmd --permanent --zone=trusted --add-source=10.241.143.1/24
+                firewall-cmd --permanent --zone=trusted --add-source=10.7.0.0/24
                 # Set NAT for the VPN subnet
-                firewall-cmd --direct --add-rule ipv4 nat POSTROUTING 0 -s 10.241.143.0/24 ! -d 10.241.143.0/24 -j SNAT --to "$ip"
-                firewall-cmd --permanent --direct --add-rule ipv4 nat POSTROUTING 0 -s 10.241.143.0/24 ! -d 10.241.143.0/24 -j SNAT --to "$ip"
+                firewall-cmd --direct --add-rule ipv4 nat POSTROUTING 0 -s 10.7.0.0/24 ! -d 10.7.0.0/24 -j SNAT --to "$ip"
+                firewall-cmd --permanent --direct --add-rule ipv4 nat POSTROUTING 0 -s 10.7.0.0/24 ! -d 10.7.0.0/24 -j SNAT --to "$ip"
                 if [[ -n "$ip6" ]]; then
                         firewall-cmd --zone=trusted --add-source=fddd:2c4:2c4:2c4::/64
                         firewall-cmd --permanent --zone=trusted --add-source=fddd:2c4:2c4:2c4::/64
@@ -291,13 +292,13 @@ EOF
 Before=network.target
 [Service]
 Type=oneshot
-ExecStart=$iptables_path -t nat -A POSTROUTING -s 10.241.143.0/24 ! -d 10.241.143.0/24 -j SNAT --to $ip
+ExecStart=$iptables_path -t nat -A POSTROUTING -s 10.7.0.0/24 ! -d 10.7.0.0/24 -j SNAT --to $ip
 ExecStart=$iptables_path -I INPUT -p udp --dport $port -j ACCEPT
-ExecStart=$iptables_path -I FORWARD -s 10.241.143.0/24 -j ACCEPT
+ExecStart=$iptables_path -I FORWARD -s 10.7.0.0/24 -j ACCEPT
 ExecStart=$iptables_path -I FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
-ExecStop=$iptables_path -t nat -D POSTROUTING -s 10.241.143.0/24 ! -d 10.241.143.0/24 -j SNAT --to $ip
+ExecStop=$iptables_path -t nat -D POSTROUTING -s 10.7.0.0/24 ! -d 10.7.0.0/24 -j SNAT --to $ip
 ExecStop=$iptables_path -D INPUT -p udp --dport $port -j ACCEPT
-ExecStop=$iptables_path -D FORWARD -s 10.241.143.0/24 -j ACCEPT
+ExecStop=$iptables_path -D FORWARD -s 10.7.0.0/24 -j ACCEPT
 ExecStop=$iptables_path -D FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT" > /etc/systemd/system/wg-iptables.service
                 if [[ -n "$ip6" ]]; then
                         echo "ExecStart=$ip6tables_path -t nat -A POSTROUTING -s fddd:2c4:2c4:2c4::/64 ! -d fddd:2c4:2c4:2c4::/64 -j SNAT --to $ip6
@@ -354,7 +355,7 @@ EOF
         figlet -kE *MTN* | lolcat
         echo -e "\033[1;33mResleeved Net Wireguard QR Code\033[0m"
         echo
-        qrencode -t ANSIUTF8 < /etc/Wire/"$client.conf"
+        qrencode -t ANSI256UTF8 < /etc/Wire/"$client.conf"
         echo
         echo -e "\033[1;36m\xE2\x86\x91Snap this QR code and Import in a Wireguard Client\033[0m"
 else
@@ -388,7 +389,7 @@ else
                         # Append new client configuration to the WireGuard interface
                         wg addconf wg0 <(sed -n "/^# BEGIN_PEER $client/,/^# END_PEER $client/p" /etc/wireguard/wg0.conf)
                         echo
-                        qrencode -t ANSIUTF8 < /etc/Wire/"$client.conf"
+                        qrencode -t ANSI256UTF8 < /etc/Wire/"$client.conf"
                         echo -e '\xE2\x86\x91 That is a QR code containing your client configuration.'
                         echo "$client added"
                         exit
