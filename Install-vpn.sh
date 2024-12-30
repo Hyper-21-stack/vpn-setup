@@ -1,21 +1,22 @@
 #!/bin/bash
-YELLOW='\033[1;33m'
+# Red Color for banners
+RED='\033[1;31m'
 NC='\033[0m'
 # Generate ASCII Banner
 clear
 figlet -f slant "HyperNet" | lolcat
-echo -e "${YELLOW}HyperNet Ultimate Installer${NC}"
+echo -e "${RED}HyperNet Ultimate Installer${NC}"
 echo -e "\033[1;32m HyperNet v1.0 \033[0m"
 echo
 # Check for root privileges
 if [ "$(whoami)" != "root" ]; then
-    echo "Error: This script must be run as root." >&2
+    echo -e "${RED}Error: This script must be run as root.${NC}" >&2
     exit 1
 fi
 # Check for dependencies
 for cmd in figlet lolcat wget curl wg qrencode; do
     if ! command -v "$cmd" &> /dev/null; then
-        echo "Error: $cmd is not installed. Please install it before running the script." >&2
+        echo -e "${RED}Error: $cmd is not installed. Please install it before running the script.${NC}" >&2
         exit 1
     fi
 done
@@ -23,7 +24,7 @@ cd /root || exit
 clear
 # Detect Debian users running the script with "sh" instead of bash
 if readlink /proc/$$/exe | grep -q "dash"; then
-    echo 'This installer needs to be run with "bash", not "sh".' >&2
+    echo -e "${RED}This installer needs to be run with "bash", not "sh".${NC}" >&2
     exit 1
 fi
 # Discard stdin, needed when running from a one-liner
@@ -32,12 +33,12 @@ read -N 999999 -t 0.001
 if grep -qs "ubuntu" /etc/os-release; then
     os="ubuntu"
 else
-    echo "Error: This script is intended for Ubuntu." >&2
+    echo -e "${RED}Error: This script is intended for Ubuntu.${NC}" >&2
     exit 1
 fi
 # Check for environments where $PATH does not include the sbin directories
 if ! grep -q 'sbin' <<< "$PATH"; then
-    echo '$PATH does not include sbin. Try using "su -" instead of "su".' >&2
+    echo -e "${RED}\$PATH does not include sbin. Try using "su -" instead of "su".${NC}" >&2
     exit 1
 fi
 # Check if BoringTun (userspace WireGuard) needs to be used
@@ -51,11 +52,11 @@ fi
 # Check for TUN device
 if [[ "$use_boringtun" -eq 1 ]]; then
     if [ "$(uname -m)" != "x86_64" ]; then
-        echo "This installer supports only the x86_64 architecture. Your system runs on $(uname -m) and is unsupported." >&2
+        echo -e "${RED}This installer supports only the x86_64 architecture. Your system runs on $(uname -m) and is unsupported.${NC}" >&2
         exit 1
     fi
     if [[ ! -e /dev/net/tun ]] || ! (exec 7<>/dev/net/tun) 2>/dev/null; then
-        echo "The system does not have the TUN device available. TUN needs to be enabled before running this installer." >&2
+        echo -e "${RED}The system does not have the TUN device available. TUN needs to be enabled before running this installer.${NC}" >&2
         exit 1
     fi
 fi
@@ -75,7 +76,7 @@ new_client_setup() {
         ((octet++))
     done
     if [[ "$octet" -eq 255 ]]; then
-        echo "253 clients are already configured. The WireGuard internal subnet is full!" >&2
+        echo -e "${RED}253 clients are already configured. The WireGuard internal subnet is full!${NC}" >&2
         exit 1
     fi
     key=$(wg genkey)
@@ -119,27 +120,24 @@ echo '/usr/local/bin/hyper_banner.sh' >> /root/.bashrc
 # Check for WireGuard configuration
 if [[ ! -e /etc/wireguard/wg0.conf ]]; then
     # Perform system updates 
-    echo -e "${YELLOW}Updating system packages...${NC}"
+    echo -e "${RED}Updating system packages...${NC}"
     apt-get update && apt-get upgrade -y
     # Install necessary packages
-    echo -e "${YELLOW}Installing required packages...${NC}"
-    apt-get install -y wireguard qrencode iptables-persistent || { echo "Failed to install WireGuard"; exit 1; }
+    echo -e "${RED}Installing required packages...${NC}"
+    apt-get install -y wireguard qrencode iptables-persistent || { echo -e "${RED}Failed to install WireGuard${NC}"; exit 1; }
     clear
     figlet -kE "MTN" | lolcat
-    echo -e "${YELLOW}Hyper WireGuard${NC}"
-    # IPv4 Address Handling
-    # (Your existing IPv4 handling code will go here...)
+    echo -e "${RED}Hyper WireGuard${NC}"
     # Configure Remote Port
     read -p "$(echo -e "\033[1;32mConfigure Remote Port(\033[1;33m36718\033[1;32m): \033[0m")" port
     until [[ -z "$port" || "$port" =~ ^[0-9]+$ && "$port" -le 65535 ]]; do
-        echo "$port: invalid port." >&2
+        echo -e "${RED}$port: invalid port.${NC}" >&2
         read -p "$(echo -e "\033[1;32mConfigure Remote Port(\033[1;33m36718\033[1;32m): \033[0m")" port
     done
     [[ -z "$port" ]] && port="36718"
-    echo -e "${YELLOW}Performing additional configurations...${NC}"
+    echo -e "${RED}Performing additional configurations...${NC}"
     # Set the MTU value for potential speed improvements
-    MTU=9000
-    
+    MTU=9000  # Adjust this based on your network requirements
     # Generate wg0.conf
     cat << EOF > /etc/wireguard/wg0.conf
 # Do not alter the commented lines
@@ -154,15 +152,13 @@ PersistentKeepalive = 25  # Important for maintaining connection stability
 EOF
     chmod 600 /etc/wireguard/wg0.conf
     # Configure system for network performance
-    echo -e "\n# Increase buffer sizes for improved performance" >> /etc/sysctl.conf
+    echo -e "\n# Performance settings for improved speed" >> /etc/sysctl.conf
     echo -e "net.core.rmem_max = 16777216\nnet.core.wmem_max = 16777216\nnet.ipv4.tcp_rmem = 4096 87380 16777216\nnet.ipv4.tcp_wmem = 4096 65536 16777216" >> /etc/sysctl.conf
     echo "net.core.netdev_max_backlog = 250000" >> /etc/sysctl.conf
     echo "net.ipv4.tcp_congestion_control = bbr" >> /etc/sysctl.conf
     sysctl -p  # Apply changes
-    
     echo 'net.ipv4.ip_forward=1' >> /etc/sysctl.d/99-wireguard-forward.conf
     echo 1 > /proc/sys/net/ipv4/ip_forward
-    
     # Firewalld or iptables rules
     iptables -A INPUT -p udp --dport $port -j ACCEPT
     iptables -A FORWARD -s 10.7.0.0/24 -j ACCEPT
@@ -170,35 +166,37 @@ EOF
     # Generate new client configuration
     new_client_dns
     new_client_setup
+    
     # Enable and start the wg-quick service
     systemctl enable --now wg-quick@wg0.service
+    
     # Provide user with QR code for client config
     clear
-    echo -e "${YELLOW}Hyper Net Wireguard QR Code${NC}"
+    echo -e "${RED}Hyper Net Wireguard QR Code${NC}"
     qrencode -t ANSIUTF8 < /etc/Wire/"$client.conf"
     echo -e "\033[1;36m\xE2\x86\x91 Snap this QR code and import it in a Wireguard Client\033[0m"
 else
     clear
     figlet -kE "MTN" | lolcat
-    echo -e "${YELLOW}Hyper Net Wireguard${NC}"
+    echo -e "${RED}Hyper Net Wireguard${NC}"
     echo -e "\033[1;32mSelect an option:\033[0m"
     echo "1) Add a new client"
     echo "2) Remove an existing client"
     echo "3) Remove WireGuard"
     echo "4) Exit"
-    read -p "$(echo -e "${YELLOW}Select a number from 1 to 4: ${NC}")" option
+    read -p "$(echo -e "${RED}Select a number from 1 to 4: ${NC}")" option
     until [[ "$option" =~ ^[1-4]$ ]]; do
-        echo "$option: invalid selection." >&2
-        read -p "$(echo -e "${YELLOW}Select a number from 1 to 4: ${NC}")" option
+        echo -e "${RED}$option: invalid selection.${NC}" >&2
+        read -p "$(echo -e "${RED}Select a number from 1 to 4: ${NC}")" option
     done
     case "$option" in
         1)
             # Client creation code
-            echo "Provide a name for the client:"
+            echo -e "${RED}Provide a name for the client:${NC}"
             read -p "Name: " unsanitized_client
             client=$(sed 's/[^0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-]//g' <<< "$unsanitized_client" | cut -c-15)
             while [[ -z "$client" ]] || grep -q "^# BEGIN_PEER $client$" /etc/wireguard/wg0.conf; do
-                echo "$client: invalid name." >&2
+                echo -e "${RED}$client: invalid name.${NC}" >&2
                 read -p "Name: " unsanitized_client
                 client=$(sed 's/[^0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-]//g' <<< "$unsanitized_client" | cut -c-15)
             done
