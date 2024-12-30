@@ -267,6 +267,7 @@ EOF
     if systemctl is-active --quiet firewalld.service; then
         firewall-cmd --add-port="$port"/udp --permanent
         firewall-cmd --zone=trusted --add-source=10.7.0.0/24 --permanent
+        firewall-cmd --reload  # Reload rules
     else
         iptables_path=$(command -v iptables)
         echo "[Unit]
@@ -417,12 +418,23 @@ else
             exit
             ;;
         4)
-            echo "Provide the client name for the QR code:"
-            read -p "Client Name: " client_qr
-            if [ -f "/etc/Wire/${client_qr}.conf" ]; then
-                show_client_qr_code "$client_qr"
+            number_of_clients=$(grep -c '^# BEGIN_PEER' /etc/wireguard/wg0.conf)
+            if [[ "$number_of_clients" == 0 ]]; then
+                echo "There are no existing clients!" >&2
+                exit 1
+            fi
+            echo "Select the client to show QR code:"
+            grep '^# BEGIN_PEER' /etc/wireguard/wg0.conf | cut -d ' ' -f 3 | nl -s ') '
+            read -p "Client: " client_number
+            until [[ "$client_number" =~ ^[0-9]+$ && "$client_number" -le "$number_of_clients" ]]; do
+                echo "$client_number: invalid selection." >&2
+                read -p "Client: " client_number
+            done
+            client=$(grep '^# BEGIN_PEER' /etc/wireguard/wg0.conf | cut -d ' ' -f 3 | sed -n "$client_number"p)
+            if [ -f "/etc/Wire/${client}.conf" ]; then
+                show_client_qr_code "$client"
             else
-                echo "Error: Client config for '$client_qr' not found." >&2
+                echo "Error: Client config for '$client' not found." >&2
             fi
             ;;
         5)
