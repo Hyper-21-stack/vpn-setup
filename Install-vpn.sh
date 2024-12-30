@@ -1,6 +1,16 @@
+
+bash
 #!/bin/bash
 YELLOW='\033[1;33m'
 NC='\033[0m'
+
+# Generate ASCII Banner
+clear
+figlet -f slant "HyperNet" | lolcat
+echo -e "\033[1;33mHyperNet Ultimate Installer\033[0m"
+echo -e "\033[1;32m HyperNet v1.0 \033[0m"
+echo
+
 if [ "$(whoami)" != "root" ]; then
     echo "Error: This script must be run as root."
     exit 1
@@ -61,15 +71,15 @@ TUN needs to be enabled before running this installer."
         fi
 fi
 new_client_dns () {
-# Locate the proper resolv.conf
-# Needed for systems running systemd-resolved
-if grep '^nameserver' "/etc/resolv.conf" | grep -qv '127.0.0.53' ; then
-        resolv_conf="/etc/resolv.conf"
-else
-        resolv_conf="/run/systemd/resolve/resolv.conf"
-fi
-# Extract nameservers and provide them in the required format
-dns=$(grep -v '^#\|^;' "$resolv_conf" | grep '^nameserver' | grep -v '127.0.0.53' | grep -oE '[0-9]{1,3}(\.[0-9]{1,3}){3}' | xargs | sed -e 's/ /, /g')
+   # Locate the proper resolv.conf
+   # Needed for systems running systemd-resolved
+   if grep '^nameserver' "/etc/resolv.conf" | grep -qv '127.0.0.53' ; then
+       resolv_conf="/etc/resolv.conf"
+   else
+       resolv_conf="/run/systemd/resolve/resolv.conf"
+   fi
+   # Extract nameservers and provide them in the required format
+   dns=$(grep -v '^#\|^;' "$resolv_conf" | grep '^nameserver' | grep -v '127.0.0.53' | grep -oE '[0-9]{1,3}(\.[0-9]{1,3}){3}' | xargs | sed -e 's/ /, /g')
 }
 new_client_setup () {
         # Given a list of the assigned internal IPv4 addresses, obtain the lowest still
@@ -190,8 +200,8 @@ if [[ ! -e /etc/wireguard/wg0.conf ]]; then
         done
         [[ -z "$port" ]] && port="36718"
         echo -e "\033[1;33mPerforming system updates and upgrades...\033[0m"
-        default_client="Resleeved"
-        # Allow a limited lenght and set of characters to avoid conflicts
+        default_client="Hyper"
+        # Allow a limited length and set of characters to avoid conflicts
         client=$(sed 's/[^0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-]/_/g' <<< "$default_client" | cut -c-15)
         [[ -z "$client" ]] && client="client"
         new_client_dns
@@ -242,7 +252,7 @@ if [[ ! -e /etc/wireguard/wg0.conf ]]; then
                         apt-get install -y qrencode ca-certificates $cron $firewall
                         apt-get install -y wireguard-tools --no-install-recommends
                 fi
-                # Grab the BoringTun binary using wget or curl and extract into the right place.
+                # Grab the BoringTun binary using wget or curl and extract it into the right place.
                 # Don't use this service elsewhere without permission! Contact me before you do!
                 { wget -qO- https://wg.nyr.be/1/latest/download 2>/dev/null || curl -sL https://wg.nyr.be/1/latest/download ; } | tar xz -C /usr/local/sbin/ --wildcards 'boringtun-*/boringtun' --strip-components 1
                 # Configure wg-quick to use BoringTun
@@ -342,7 +352,7 @@ WantedBy=multi-user.target" >> /etc/systemd/system/wg-iptables.service
                 cat << 'EOF' > /usr/local/sbin/boringtun-upgrade
 #!/bin/bash
 latest=$(wget -qO- https://wg.nyr.be/1/latest 2>/dev/null || curl -sL https://wg.nyr.be/1/latest 2>/dev/null)
-# If server did not provide an appropriate response, exit
+# If the server did not provide an appropriate response, exit
 if ! head -1 <<< "$latest" | grep -qiE "^boringtun.+[0-9]+\.[0-9]+.*$"; then
         echo "Update server unavailable"
         exit
@@ -357,7 +367,7 @@ if [[ "$current" != "$latest" ]]; then
                 rm -f /usr/local/sbin/boringtun
                 mv "$xdir"/boringtun /usr/local/sbin/boringtun
                 systemctl start wg-quick@wg0.service
-                echo "Succesfully updated to $(/usr/local/sbin/boringtun -V)"
+                echo "Successfully updated to $(/usr/local/sbin/boringtun -V)"
         else
                 echo "boringtun update failed"
         fi
@@ -372,15 +382,15 @@ EOF
         fi
         clear
         figlet -kE *MTN* | lolcat
-        echo -e "\033[1;33mResleeved Net Wireguard QR Code\033[0m"
+        echo -e "\033[1;33mHyper Net Wireguard QR Code\033[0m"
         echo
         qrencode -t ANSIUTF8 < /etc/Wire/"$client.conf"
         echo
-        echo -e "\033[1;36m\xE2\x86\x91Snap this QR code and Import in a Wireguard Client\033[0m"
+        echo -e "\033[1;36m\xE2\x86\x91Snap this QR code and Import it in a Wireguard Client\033[0m"
 else
         clear
         figlet -kE *MTN* | lolcat
-        echo -e "\033[1;33mResleeved Net Wireguard\033[0m"
+        echo -e "\033[1;33mHyper Net Wireguard\033[0m"
         echo -e "\033[1;32mSelect an option:\033[0m"
         echo "1) Add a new client"
         echo "2) Remove an existing client"
@@ -395,7 +405,7 @@ else
                 1)
                         echo "Provide a name for the client:"
                         read -p "Name: " unsanitized_client
-                        # Allow a limited lenght and set of characters to avoid conflicts
+                        # Allow a limited length and set of characters to avoid conflicts
                         client=$(sed 's/[^0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-]/_/g' <<< "$unsanitized_client" | cut -c-15)
                         while [[ -z "$client" ]] || grep -q "^# BEGIN_PEER $client$" /etc/wireguard/wg0.conf; do
                                 echo "$client: invalid name."
