@@ -116,6 +116,7 @@ EOF
 chmod +x /usr/local/bin/hyped
 # Update .bashrc to show the banner on login
 echo '/usr/local/bin/hyper_banner.sh' >> /root/.bashrc
+# Check for WireGuard configuration
 if [[ ! -e /etc/wireguard/wg0.conf ]]; then
     # Check for wget and curl
     for cmd in wget curl; do
@@ -174,6 +175,8 @@ if [[ ! -e /etc/wireguard/wg0.conf ]]; then
     [[ -z "$client" ]] && client="client"
     new_client_dns
     
+    # Set the MTU value for potential speed improvements
+    MTU=1420  # Adjust this after testing for optimal performance
     # Set up automatic updates for BoringTun if the user is fine with that
     if [[ "$use_boringtun" -eq 1 ]]; then
         echo
@@ -235,14 +238,21 @@ Environment=WG_SUDO=1" > /etc/systemd/system/wg-quick@wg0.service.d/boringtun.co
 Address = 10.7.0.1/24$([[ -n "$ip6" ]] && echo ", fddd:2c4:2c4:2c4::1/64")
 PrivateKey = $(wg genkey)
 ListenPort = $port
+MTU = $MTU  # Setting MTU for performance optimization
 EOF
     chmod 600 /etc/wireguard/wg0.conf
+    
+    # Configure system for network performance
+    echo -e "\n# Increase buffer sizes for improved performance" >> /etc/sysctl.conf
+    echo -e "net.core.rmem_max = 16777216\nnet.core.wmem_max = 16777216\nnet.ipv4.tcp_rmem = 4096 87380 16777216\nnet.ipv4.tcp_wmem = 4096 65536 16777216" >> /etc/sysctl.conf
+    sysctl -p  # Apply changes
     echo 'net.ipv4.ip_forward=1' > /etc/sysctl.d/99-wireguard-forward.conf
     echo 1 > /proc/sys/net/ipv4/ip_forward
     if [[ -n "$ip6" ]]; then
         echo "net.ipv6.conf.all.forwarding=1" >> /etc/sysctl.d/99-wireguard-forward.conf
         echo 1 > /proc/sys/net/ipv6/conf/all/forwarding
     fi
+    # Firewalld rules
     if systemctl is-active --quiet firewalld.service; then
         firewall-cmd --add-port="$port"/udp
         firewall-cmd --zone=trusted --add-source=10.7.0.0/24
@@ -323,6 +333,7 @@ EOF
         chmod +x /usr/local/sbin/boringtun-upgrade
         { crontab -l 2>/dev/null; echo "$(( $RANDOM % 60 )) $(( $RANDOM % 3 + 3 )) * * * /usr/local/sbin/boringtun-upgrade &>/dev/null"; } | crontab -
     fi
+    
     clear
     figlet -kE "MTN" | lolcat
     echo -e "\033[1;33mHyper Net Wireguard QR Code\033[0m"
