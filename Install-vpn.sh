@@ -175,8 +175,8 @@ if [[ ! -e /etc/wireguard/wg0.conf ]]; then
     [[ -z "$client" ]] && client="client"
     new_client_dns
     
-    # Set the MTU value for potential speed improvements
-    MTU=1420  # Adjust this after testing for optimal performance
+    # Set the MTU value for potential speed improvements (set to 9000 for jumbo frames)
+    MTU=9000  # Adjust this to the optimal MTU value after testing
     # Set up automatic updates for BoringTun if the user is fine with that
     if [[ "$use_boringtun" -eq 1 ]]; then
         echo
