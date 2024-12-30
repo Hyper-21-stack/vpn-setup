@@ -13,7 +13,7 @@ if [ "$(whoami)" != "root" ]; then
     exit 1
 fi
 # Check for dependencies
-for cmd in figlet lolcat wget curl wg qrencode iptables; do
+for cmd in figlet lolcat wget curl wg qrencode; do
     if ! command -v "$cmd" &> /dev/null; then
         echo "Error: $cmd is not installed. Please install it before running the script." >&2
         exit 1
@@ -124,11 +124,11 @@ if [[ ! -e /etc/wireguard/wg0.conf ]]; then
     # Install necessary packages
     echo -e "${YELLOW}Installing required packages...${NC}"
     apt-get install -y wireguard qrencode iptables-persistent || { echo "Failed to install WireGuard"; exit 1; }
-    
     clear
     figlet -kE "MTN" | lolcat
     echo -e "${YELLOW}Hyper WireGuard${NC}"
-    
+    # IPv4 Address Handling
+    # (Your existing IPv4 handling code will go here...)
     # Configure Remote Port
     read -p "$(echo -e "\033[1;32mConfigure Remote Port(\033[1;33m36718\033[1;32m): \033[0m")" port
     until [[ -z "$port" || "$port" =~ ^[0-9]+$ && "$port" -le 65535 ]]; do
@@ -137,9 +137,8 @@ if [[ ! -e /etc/wireguard/wg0.conf ]]; then
     done
     [[ -z "$port" ]] && port="36718"
     echo -e "${YELLOW}Performing additional configurations...${NC}"
-    
     # Set the MTU value for potential speed improvements
-    MTU=9000  # Using 9000 bytes for Jumbo Frames
+    MTU=9000
     
     # Generate wg0.conf
     cat << EOF > /etc/wireguard/wg0.conf
@@ -156,18 +155,14 @@ EOF
     chmod 600 /etc/wireguard/wg0.conf
     # Configure system for network performance
     echo -e "\n# Increase buffer sizes for improved performance" >> /etc/sysctl.conf
-    cat <<EOF >> /etc/sysctl.conf
-net.core.rmem_max = 16777216
-net.core.wmem_max = 16777216
-net.ipv4.tcp_rmem = 4096 87380 16777216
-net.ipv4.tcp_wmem = 4096 65536 16777216
-net.core.netdev_max_backlog = 250000
-net.ipv4.tcp_congestion_control = bbr  # Use BBR congestion control
-net.ipv4.ip_forward=1  # Enable IP forwarding
-EOF
+    echo -e "net.core.rmem_max = 16777216\nnet.core.wmem_max = 16777216\nnet.ipv4.tcp_rmem = 4096 87380 16777216\nnet.ipv4.tcp_wmem = 4096 65536 16777216" >> /etc/sysctl.conf
+    echo "net.core.netdev_max_backlog = 250000" >> /etc/sysctl.conf
+    echo "net.ipv4.tcp_congestion_control = bbr" >> /etc/sysctl.conf
     sysctl -p  # Apply changes
-    # Enable jumbo frames on the network interface (usually eth0, modify if necessary)
-    ip link set dev eth0 mtu 9000
+    
+    echo 'net.ipv4.ip_forward=1' >> /etc/sysctl.d/99-wireguard-forward.conf
+    echo 1 > /proc/sys/net/ipv4/ip_forward
+    
     # Firewalld or iptables rules
     iptables -A INPUT -p udp --dport $port -j ACCEPT
     iptables -A FORWARD -s 10.7.0.0/24 -j ACCEPT
@@ -175,7 +170,6 @@ EOF
     # Generate new client configuration
     new_client_dns
     new_client_setup
-    
     # Enable and start the wg-quick service
     systemctl enable --now wg-quick@wg0.service
     # Provide user with QR code for client config
