@@ -1,113 +1,102 @@
 #!/bin/bash
-
-# Define Colors
 YELLOW='\033[1;33m'
-CYAN='\033[1;36m'
-GREEN='\033[1;32m'
-RED='\033[1;31m'
 NC='\033[0m'
-
-# ASCII Art Banner
-clear
-echo -e "${CYAN}"
-echo -e "  ██╗  ██╗██╗   ██╗██████╗ ███████╗███████╗ ██████╗ "
-echo -e "  ██║  ██║██║   ██║██╔══██╗██╔════╝██╔════╝██╔═══██╗"
-echo -e "  ███████║██║   ██║██████╔╝███████╗█████╗  ██║   ██║"
-echo -e "  ██╔══██║██║   ██║██╔═══╝ ╚════██║██╔══╝  ██║   ██║"
-echo -e "  ██║  ██║╚██████╔╝██║     ███████║███████╗╚██████╔╝"
-echo -e "  ╚═╝  ╚═╝ ╚═════╝ ╚═╝     ╚══════╝╚══════╝ ╚═════╝ "
-echo -e "${YELLOW}Welcome to the HYPER Ultimate Installer!${NC}"
-echo -e "${CYAN}--------------------------------------------------${NC}"
-
-# Ensure the script is run as root
 if [ "$(whoami)" != "root" ]; then
-    echo -e "${RED}Error: This script must be run as root.${NC}"
+    echo "Error: This script must be run as root."
     exit 1
 fi
-
 cd /root
 clear
 
 # Detect Debian users running the script with "sh" instead of bash
 if readlink /proc/$$/exe | grep -q "dash"; then
-    echo -e "${RED}This installer needs to be run with \"bash\", not \"sh\".${NC}"
-    exit
+        echo 'This installer needs to be run with "bash", not "sh".'
+        exit
 fi
 
-# Discard stdin. Needed when running from a one-liner which includes a newline
+# Discard stdin. Needed when running from an one-liner which includes a newline
 read -N 999999 -t 0.001
 
 # Detect OS
+# $os_version variables aren't always in use, but are kept here for convenience
 if grep -qs "ubuntu" /etc/os-release; then
-    os="ubuntu"
-    os_version=$(grep 'VERSION_ID' /etc/os-release | cut -d '"' -f 2 | tr -d '.')
+        os="ubuntu"
+        os_version=$(grep 'VERSION_ID' /etc/os-release | cut -d '"' -f 2 | tr -d '.')
 fi
-
 # Detect environments where $PATH does not include the sbin directories
 if ! grep -q sbin <<< "$PATH"; then
-    echo -e "${RED}$PATH does not include sbin. Try using \"su -\" instead of \"su\".${NC}"
-    exit
+        echo '$PATH does not include sbin. Try using "su -" instead of "su".'
+        exit
 fi
 
 # Detect if BoringTun (userspace WireGuard) needs to be used
 if ! systemd-detect-virt -cq; then
-    use_boringtun="0"
+        # Not running inside a container
+        use_boringtun="0"
 elif grep -q '^wireguard ' /proc/modules; then
-    use_boringtun="0"
+        # Running inside a container, but the wireguard kernel module is available
+        use_boringtun="0"
 else
-    use_boringtun="1"
+        # Running inside a container and the wireguard kernel module is not available
+        use_boringtun="1"
 fi
 
 if [[ "$EUID" -ne 0 ]]; then
-    echo -e "${RED}This installer needs to be run with superuser privileges.${NC}"
-    exit
+        echo "This installer needs to be run with superuser privileges."
+        exit
 fi
 
 if [[ "$use_boringtun" -eq 1 ]]; then
-    if [ "$(uname -m)" != "x86_64" ]; then
-        echo -e "${RED}In containerized systems without the wireguard kernel module, this installer\n"
-        echo -e "supports only the x86_64 architecture.\n"
-        echo -e "The system runs on $(uname -m) and is unsupported.${NC}"
-        exit
-    fi
-    # TUN device is required to use BoringTun
-    if [[ ! -e /dev/net/tun ]] || ! ( exec 7<>/dev/net/tun ) 2>/dev/null; then
-        echo -e "${RED}The system does not have the TUN device available.\nTUN needs to be enabled before running this installer.${NC}"
-        exit
-    fi
+        if [ "$(uname -m)" != "x86_64" ]; then
+                echo "In containerized systems without the wireguard kernel module, this installer
+supports only the x86_64 architecture.
+The system runs on $(uname -m) and is unsupported."
+                exit
+        fi
+        # TUN device is required to use BoringTun
+        if [[ ! -e /dev/net/tun ]] || ! ( exec 7<>/dev/net/tun ) 2>/dev/null; then
+                echo "The system does not have the TUN device available.
+TUN needs to be enabled before running this installer."
+                exit
+        fi
 fi
-
 new_client_dns () {
-    # Locate the proper resolv.conf
-    if grep '^nameserver' "/etc/resolv.conf" | grep -qv '127.0.0.53'; then
+# Locate the proper resolv.conf
+# Needed for systems running systemd-resolved
+if grep '^nameserver' "/etc/resolv.conf" | grep -qv '127.0.0.53' ; then
         resolv_conf="/etc/resolv.conf"
-    else
+else
         resolv_conf="/run/systemd/resolve/resolv.conf"
-    fi
-    # Extract nameservers and provide them in the required format
-    dns=$(grep -v '^#\|^;' "$resolv_conf" | grep '^nameserver' | grep -v '127.0.0.53' | grep -oE '[0-9]{1,3}(\.[0-9]{1,3}){3}' | xargs | sed -e 's/ /, /g')
+fi
+# Extract nameservers and provide them in the required format
+dns=$(grep -v '^#\|^;' "$resolv_conf" | grep '^nameserver' | grep -v '127.0.0.53' | grep -oE '[0-9]{1,3}(\.[0-9]{1,3}){3}' | xargs | sed -e 's/ /, /g')
 }
-
 new_client_setup () {
-    octet=2
-    while grep AllowedIPs /etc/wireguard/wg0.conf | cut -d "." -f 4 | cut -d "/" -f 1 | grep -q "^$octet$"; do
-        (( octet++ ))
-    done
-    if [[ "$octet" -eq 255 ]]; then
-        echo -e "${RED}253 clients are already configured. The WireGuard internal subnet is full!${NC}"
-        exit
-    fi
-    key=$(wg genkey)
-    psk=$(wg genpsk)
-    cat << EOF >> /etc/wireguard/wg0.conf
+        # Given a list of the assigned internal IPv4 addresses, obtain the lowest still
+        # available octet. Important to start looking at 2, because 1 is our gateway.
+        octet=2
+        while grep AllowedIPs /etc/wireguard/wg0.conf | cut -d "." -f 4 | cut -d "/" -f 1 | grep -q "^$octet$"; do
+                (( octet++ ))
+        done
+        # Don't break the WireGuard configuration in case the address space is full
+        if [[ "$octet" -eq 255 ]]; then
+                echo "253 clients are already configured. The WireGuard internal subnet is full!"
+                exit
+        fi
+        key=$(wg genkey)
+        psk=$(wg genpsk)
+        # Configure client in the server
+        cat << EOF >> /etc/wireguard/wg0.conf
 # BEGIN_PEER $client
 [Peer]
 PublicKey = $(wg pubkey <<< $key)
 PresharedKey = $psk
-AllowedIPs = 10.7.0.$octet/32
-EOF
-}
+AllowedIPs = 10.7.0.$octet/32$(grep -q 'fddd:2c4:2c4:2c4::1' /etc/wireguard/wg0.conf && echo ", fddd:2c4:2c4:2c4::$octet/128")
 
+[Peer]
+PublicKey = $(wg pubkey <<< $key)
+PresharedKey = $psk
+AllowedIPs = 10.7.0.$octet/32
 
 [Peer]
 PublicKey = $(wg pubkey <<< $key)
