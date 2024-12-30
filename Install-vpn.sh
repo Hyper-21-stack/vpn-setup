@@ -2,18 +2,34 @@
 # Color definitions
 YELLOW='\033[1;33m'
 NC='\033[0m'
-# Log file for installation
 LOGFILE="/var/log/hypernet_installer.log"
-# Utility function for logging
+# Logging function
 log() {
     echo "$(date +"%Y-%m-%d %H:%M:%S") - $1" >> "$LOGFILE"
 }
+# Function to display the banner
+display_banner() {
+    clear
+    echo -e "${YELLOW}==============================${NC}"
+    figlet -f slant "HyperNet" | lolcat
+    echo -e "${YELLOW}HyperNet Ultimate Installer${NC}"
+    echo -e "${YELLOW}HyperNet v1.5${NC}"
+    echo -e "${YELLOW}==============================${NC}"
+    echo
+}
+# Function to stop blinking text while loading
+stop_blinking() {
+    echo -e "\033[?25l" # Hide the cursor
+}
+# Function to show the client QR code
+show_client_qr_code() {
+    client=$1  # Client name passed as an argument
+    qrencode -t ANSIUTF8 < /etc/Wire/"${client}.conf"
+    echo -e "${YELLOW}\xE2\x86\x91 Snap this QR code and Import it in a Wireguard Client${NC}"
+}
 # Generate ASCII Banner
-clear
-figlet -f slant "HyperNet" | lolcat
-echo -e "${YELLOW}HyperNet Ultimate Installer${NC}"
-echo -e "${YELLOW}HyperNet v1.5${NC}"
-echo
+display_banner
+stop_blinking
 # Check for root privileges
 if [ "$(whoami)" != "root" ]; then
     echo "Error: This script must be run as root." >&2
@@ -30,7 +46,7 @@ for cmd in "${required_cmds[@]}"; do
     fi
 done
 cd /root || exit
-clear
+display_banner
 # Detect Debian users running the script with "sh" instead of bash
 if readlink /proc/$$/exe | grep -q "dash"; then
     echo 'This installer needs to be run with "bash", not "sh".' >&2
@@ -149,9 +165,8 @@ if [[ ! -e /etc/wireguard/wg0.conf ]]; then
         fi
     done
     clear
-    figlet -kE "MTN" | lolcat
+    display_banner
     echo -e "${YELLOW}Hyper WireGuard${NC}"
-    
     # IPv4 Address Handling
     if [[ $(ip -4 addr | grep inet | grep -vEc '127(\.[0-9]{1,3}){3}') -eq 1 ]]; then
         ip=$(ip -4 addr | grep inet | grep -vE '127(\.[0-9]{1,3}){3}' | cut -d '/' -f 1 | grep -oE '[0-9]{1,3}(\.[0-9]{1,3}){3}')
@@ -304,27 +319,24 @@ EOF
     fi
     # Generate QR Code for client configuration
     clear
-    figlet -kE "MTN" | lolcat
+    display_banner
     echo -e "${YELLOW}Hyper Net Wireguard QR Code${NC}"
-    echo
-    qrencode -t ANSIUTF8 < /etc/Wire/"$client.conf"
-    echo
-    echo -e "${YELLOW}\xE2\x86\x91Snap this QR code and Import it in a Wireguard Client${NC}"
+    show_client_qr_code "$client"  # Call the QR code function with the client name
 else
     clear
-    figlet -kE "MTN" | lolcat
+    display_banner
     echo -e "${YELLOW}Hyper Net Wireguard${NC}"
     echo -e "${YELLOW}Select an option:${NC}"
     # Interactive menu for managing clients
     echo "1) Add a new client"
     echo "2) Remove an existing client"
     echo "3) Remove WireGuard"
-    echo "4) Exit"
-    
-    read -p "$(echo -e "${YELLOW}Select a number from 1 to 4: ${NC}")" option
-    until [[ "$option" =~ ^[1-4]$ ]]; do
+    echo "4) Show client QR code"
+    echo "5) Exit"
+    read -p "$(echo -e "${YELLOW}Select a number from 1 to 5: ${NC}")" option
+    until [[ "$option" =~ ^[1-5]$ ]]; do
         echo "$option: invalid selection." >&2
-        read -p "$(echo -e "${YELLOW}Select a number from 1 to 4: ${NC}")" option
+        read -p "$(echo -e "${YELLOW}Select a number from 1 to 5: ${NC}")" option
     done
     case "$option" in
         1)
@@ -405,6 +417,15 @@ else
             exit
             ;;
         4)
+            echo "Provide the client name for the QR code:"
+            read -p "Client Name: " client_qr
+            if [ -f "/etc/Wire/${client_qr}.conf" ]; then
+                show_client_qr_code "$client_qr"
+            else
+                echo "Error: Client config for '$client_qr' not found." >&2
+            fi
+            ;;
+        5)
             exit
             ;;
     esac
