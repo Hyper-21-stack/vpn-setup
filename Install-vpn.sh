@@ -3,10 +3,11 @@ YELLOW='\033[1;33m'
 NC='\033[0m'
 # Generate ASCII Banner
 clear
-figlet -f slant "HyperNet" | lolcat
-echo -e "\033[1;33mHyperNet Ultimate Installer\033[0m"
-echo -e "\033[1;32m HyperNet v1.0 \033[0m"
-echo
+# Change the font to standard for a non-slanting appearance
+figlet -f standard "HyperNet" | lolcat
+echo -e "\033[1;33m\n\n\nHyperNet Ultimate Installer\033[0m"  # added additional line breaks
+echo -e "\033[1;32m\n\n HyperNet v1.0 \033[0m"  # added additional line breaks
+echo 
 # Check for root privileges
 if [ "$(whoami)" != "root" ]; then
     echo "Error: This script must be run as root." >&2
