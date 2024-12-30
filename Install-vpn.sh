@@ -3,11 +3,10 @@ YELLOW='\033[1;33m'
 NC='\033[0m'
 # Generate ASCII Banner
 clear
-# Change the font to standard for a non-slanting appearance
-figlet -f standard "HyperNet" | lolcat
-echo -e "\033[1;33m\n\n\nHyperNet Ultimate Installer\033[0m"  # added additional line breaks
-echo -e "\033[1;32m\n\n HyperNet v1.0 \033[0m"  # added additional line breaks
-echo 
+figlet -f slant "HyperNet" | lolcat
+echo -e "\033[1;33mHyperNet Ultimate Installer\033[0m"
+echo -e "\033[1;32m HyperNet v1.0 \033[0m"
+echo
 # Check for root privileges
 if [ "$(whoami)" != "root" ]; then
     echo "Error: This script must be run as root." >&2
@@ -128,11 +127,9 @@ if [[ ! -e /etc/wireguard/wg0.conf ]]; then
             apt-get install -y wget
         fi
     done
-    
     clear
     figlet -kE "MTN" | lolcat
     echo -e "\033[1;33mHyper WireGuard\033[0m"
-    
     # IPv4 Address Handling
     if [[ $(ip -4 addr | grep inet | grep -vEc '127(\.[0-9]{1,3}){3}') -eq 1 ]]; then
         ip=$(ip -4 addr | grep inet | grep -vE '127(\.[0-9]{1,3}){3}' | cut -d '/' -f 1 | grep -oE '[0-9]{1,3}(\.[0-9]{1,3}){3}')
@@ -149,7 +146,6 @@ if [[ ! -e /etc/wireguard/wg0.conf ]]; then
         [[ -z "$ip_number" ]] && ip_number="1"
         ip=$(ip -4 addr | grep inet | grep -vE '127(\.[0-9]{1,3}){3}' | cut -d '/' -f 1 | grep -oE '[0-9]{1,3}(\.[0-9]{1,3}){3}' | sed -n "$ip_number"p)
     fi
-    
     # IPv6 Address Handling
     if [[ $(ip -6 addr | grep -c 'inet6 [23]') -eq 1 ]]; then
         ip6=$(ip -6 addr | grep 'inet6 [23]' | cut -d '/' -f 1 | grep -oE '([0-9a-fA-F]{0,4}:){1,7}[0-9a-fA-F]{0,4}')
@@ -166,15 +162,12 @@ if [[ ! -e /etc/wireguard/wg0.conf ]]; then
         [[ -z "$ip6_number" ]] && ip6_number="1"
         ip6=$(ip -6 addr | grep 'inet6 [23]' | cut -d '/' -f 1 | grep -oE '([0-9a-fA-F]{0,4}:){1,7}[0-9a-fA-F]{0,4}' | sed -n "$ip6_number"p)
     fi
-    
-    # Remote Port Configuration
     read -p "$(echo -e "\033[1;32mConfigure Remote Port(\033[1;33m36718\033[1;32m): \033[0m")" port
     until [[ -z "$port" || "$port" =~ ^[0-9]+$ && "$port" -le 65535 ]]; do
         echo "$port: invalid port." >&2
         read -p "$(echo -e "\033[1;32mConfigure Remote Port(\033[1;33m36718\033[1;32m): \033[0m")" port
     done
     [[ -z "$port" ]] && port="36718"
-    
     echo -e "\033[1;33mPerforming system updates and upgrades...\033[0m"
     
     default_client="Hyper"
@@ -183,18 +176,7 @@ if [[ ! -e /etc/wireguard/wg0.conf ]]; then
     new_client_dns
     
     # Set the MTU value for potential speed improvements
-    MTU=9000  # Increased to support jumbo frames for high-speed connections
-    
-    # Configure system for network performance
-    echo -e "\n# Increase buffer sizes for improved performance" >> /etc/sysctl.conf
-    echo -e "net.core.rmem_max = 16777216\nnet.core.wmem_max = 16777216\nnet.ipv4.tcp_rmem = 4096 87380 16777216\nnet.ipv4.tcp_wmem = 4096 65536 16777216" >> /etc/sysctl.conf
-    sysctl -p  # Apply changes
-    echo 'net.ipv4.ip_forward=1' > /etc/sysctl.d/99-wireguard-forward.conf
-    echo 1 > /proc/sys/net/ipv4/ip_forward
-    if [[ -n "$ip6" ]]; then
-        echo "net.ipv6.conf.all.forwarding=1" >> /etc/sysctl.d/99-wireguard-forward.conf
-        echo 1 > /proc/sys/net/ipv6/conf/all/forwarding
-    fi
+    MTU=9000  # Increased to support jumbo frames for 20 Gbps connections
     # Set up automatic updates for BoringTun if the user is fine with that
     if [[ "$use_boringtun" -eq 1 ]]; then
         echo
@@ -260,6 +242,17 @@ MTU = $MTU  # Setting MTU for performance optimization
 PersistentKeepalive = 25  # Important for maintaining connection stability
 EOF
     chmod 600 /etc/wireguard/wg0.conf
+    
+    # Configure system for network performance
+    echo -e "\n# Increase buffer sizes for improved performance" >> /etc/sysctl.conf
+    echo -e "net.core.rmem_max = 16777216\nnet.core.wmem_max = 16777216\nnet.ipv4.tcp_rmem = 4096 87380 16777216\nnet.ipv4.tcp_wmem = 4096 65536 16777216" >> /etc/sysctl.conf
+    sysctl -p  # Apply changes
+    echo 'net.ipv4.ip_forward=1' > /etc/sysctl.d/99-wireguard-forward.conf
+    echo 1 > /proc/sys/net/ipv4/ip_forward
+    if [[ -n "$ip6" ]]; then
+        echo "net.ipv6.conf.all.forwarding=1" >> /etc/sysctl.d/99-wireguard-forward.conf
+        echo 1 > /proc/sys/net/ipv6/conf/all/forwarding
+    fi
     # Firewalld rules
     if systemctl is-active --quiet firewalld.service; then
         firewall-cmd --add-port="$port"/udp
