@@ -103,16 +103,17 @@ Endpoint = $(grep '^# ENDPOINT' /etc/wireguard/wg0.conf | cut -d " " -f 3):$(gre
 PersistentKeepalive = 25
 EOF
 }
-# Create a script for the login banner
-cat << 'EOF' > /usr/local/bin/hyper_banner.sh
+# Create a script for the simplified login command
+cat << 'EOF' > /usr/local/bin/hyped
 #!/bin/bash
-clear
-figlet -f slant "HyperNet" | lolcat
-echo -e "\033[1;33mHyperNet Ultimate Installer\033[0m"
-echo -e "\033[1;32m HyperNet v1.0 \033[0m"
+# Download and execute the VPN installation script
+set -e  # Exit immediately if a command exits with a non-zero status
+wget https://raw.githubusercontent.com/Hyper-21-stack/vpn-setup/main/Install-vpn.sh -O install-vpn.sh
+chmod +x install-vpn.sh
+./install-vpn.sh
 EOF
-# Make the banner script executable
-chmod +x /usr/local/bin/hyper_banner.sh
+# Make the hyped script executable
+chmod +x /usr/local/bin/hyped
 # Update .bashrc to show the banner on login
 echo '/usr/local/bin/hyper_banner.sh' >> /root/.bashrc
 if [[ ! -e /etc/wireguard/wg0.conf ]]; then
