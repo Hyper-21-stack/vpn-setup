@@ -100,7 +100,7 @@ PublicKey = $(grep PrivateKey /etc/wireguard/wg0.conf | cut -d " " -f 3 | wg pub
 PresharedKey = $psk
 AllowedIPs = 0.0.0.0/0, ::/0
 Endpoint = $(grep '^# ENDPOINT' /etc/wireguard/wg0.conf | cut -d " " -f 3):$(grep ListenPort /etc/wireguard/wg0.conf | cut -d " " -f 3)
-PersistentKeepalive = 25
+PersistentKeepalive = 25  # Helps maintain the connection through NAT
 EOF
 }
 # Create a script for the simplified login command
@@ -175,8 +175,8 @@ if [[ ! -e /etc/wireguard/wg0.conf ]]; then
     [[ -z "$client" ]] && client="client"
     new_client_dns
     
-    # Set the MTU value for potential speed improvements (set to 9000 for jumbo frames)
-    MTU=9000  # Adjust this to the optimal MTU value after testing
+    # Set the MTU value for potential speed improvements
+    MTU=9000  # Increased to support jumbo frames for 20 Gbps connections
     # Set up automatic updates for BoringTun if the user is fine with that
     if [[ "$use_boringtun" -eq 1 ]]; then
         echo
@@ -239,6 +239,7 @@ Address = 10.7.0.1/24$([[ -n "$ip6" ]] && echo ", fddd:2c4:2c4:2c4::1/64")
 PrivateKey = $(wg genkey)
 ListenPort = $port
 MTU = $MTU  # Setting MTU for performance optimization
+PersistentKeepalive = 25  # Important for maintaining connection stability
 EOF
     chmod 600 /etc/wireguard/wg0.conf
     
