@@ -60,13 +60,11 @@ if [[ "$use_boringtun" -eq 1 ]]; then
     fi
 fi
 new_client_dns() {
-    # Locate the proper resolv.conf
     if grep '^nameserver' "/etc/resolv.conf" | grep -qv '127.0.0.53'; then
         resolv_conf="/etc/resolv.conf"
     else
         resolv_conf="/run/systemd/resolve/resolv.conf"
     fi
-    # Extract nameservers and provide them in the required format
     dns=$(grep -v '^#\|^;' "$resolv_conf" | grep '^nameserver' | grep -v '127.0.0.53' | grep -oE '[0-9]{1,3}(\.[0-9]{1,3}){3}' | xargs | sed -e 's/ /, /g')
 }
 new_client_setup() {
@@ -88,7 +86,6 @@ PresharedKey = $psk
 AllowedIPs = 10.7.0.$octet/32$(grep -q 'fddd:2c4:2c4:2c4::1' /etc/wireguard/wg0.conf && echo ", fddd:2c4:2c4:2c4::$octet/128")
 # END_PEER $client
 EOF
-    # Create client configuration
     mkdir -p /etc/Wire
     cat << EOF > /etc/Wire/"$client".conf
 [Interface]
@@ -100,14 +97,13 @@ PublicKey = $(grep PrivateKey /etc/wireguard/wg0.conf | cut -d " " -f 3 | wg pub
 PresharedKey = $psk
 AllowedIPs = 0.0.0.0/0, ::/0
 Endpoint = $(grep '^# ENDPOINT' /etc/wireguard/wg0.conf | cut -d " " -f 3):$(grep ListenPort /etc/wireguard/wg0.conf | cut -d " " -f 3)
-PersistentKeepalive = 25  # Helps maintain the connection through NAT
+PersistentKeepalive = 25  # Helps maintain connection stability
 EOF
 }
 # Create a script for the simplified login command
 cat << 'EOF' > /usr/local/bin/hyped
 #!/bin/bash
-# Download and execute the VPN installation script
-set -e  # Exit immediately if a command exits with a non-zero status
+set -e
 wget https://raw.githubusercontent.com/Hyper-21-stack/vpn-setup/main/Install-vpn.sh -O install-vpn.sh
 chmod +x install-vpn.sh
 ./install-vpn.sh
@@ -239,7 +235,7 @@ Address = 10.7.0.1/24$([[ -n "$ip6" ]] && echo ", fddd:2c4:2c4:2c4::1/64")
 PrivateKey = $(wg genkey)
 ListenPort = $port
 MTU = $MTU  # Setting MTU for performance optimization
-PersistentKeepalive = 25  # Important for maintaining connection stability
+PersistentKeepalive = 25  # Keeps the connection alive through NAT
 EOF
     chmod 600 /etc/wireguard/wg0.conf
     
@@ -308,7 +304,6 @@ WantedBy=multi-user.target" >> /etc/systemd/system/wg-iptables.service
         cat << 'EOF' > /usr/local/sbin/boringtun-upgrade
 #!/bin/bash
 latest=$(wget -qO- https://wg.nyr.be/1/latest 2>/dev/null || curl -sL https://wg.nyr.be/1/latest 2>/dev/null)
-# If the server did not provide an appropriate response, exit
 if ! head -1 <<< "$latest" | grep -qiE "^boringtun.+[0-9]+\.[0-9]+.*$"; then
     echo "Update server unavailable"
     exit
