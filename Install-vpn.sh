@@ -103,6 +103,18 @@ Endpoint = $(grep '^# ENDPOINT' /etc/wireguard/wg0.conf | cut -d " " -f 3):$(gre
 PersistentKeepalive = 25
 EOF
 }
+# Create a script for the login banner
+cat << 'EOF' > /usr/local/bin/hyper_banner.sh
+#!/bin/bash
+clear
+figlet -f slant "HyperNet" | lolcat
+echo -e "\033[1;33mHyperNet Ultimate Installer\033[0m"
+echo -e "\033[1;32m HyperNet v1.0 \033[0m"
+EOF
+# Make the banner script executable
+chmod +x /usr/local/bin/hyper_banner.sh
+# Update .bashrc to show the banner on login
+echo '/usr/local/bin/hyper_banner.sh' >> /root/.bashrc
 if [[ ! -e /etc/wireguard/wg0.conf ]]; then
     # Check for wget and curl
     for cmd in wget curl; do
@@ -237,7 +249,6 @@ EOF
         firewall-cmd --permanent --zone=trusted --add-source=10.7.0.0/24
         firewall-cmd --direct --add-rule ipv4 nat POSTROUTING 0 -s 10.7.0.0/24 ! -d 10.7.0.0/24 -j SNAT --to "$ip"
         firewall-cmd --permanent --direct --add-rule ipv4 nat POSTROUTING 0 -s 10.7.0.0/24 ! -d 10.7.0.0/24 -j SNAT --to "$ip"
-        
         if [[ -n "$ip6" ]]; then
             firewall-cmd --zone=trusted --add-source=fddd:2c4:2c4:2c4::/64
             firewall-cmd --permanent --zone=trusted --add-source=fddd:2c4:2c4:2c4::/64
