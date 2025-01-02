@@ -62,46 +62,6 @@ if [[ "$use_boringtun" -eq 1 ]]; then
         exit 1
     fi
 fi
-new_client_dns() {
-    echo "Select a DNS server for the client:"
-    echo "   1) Current system resolvers"
-    echo "   2) Google"
-    echo "   3) 1.1.1.1"
-    echo "   4) OpenDNS"
-    echo "   5) Quad9"
-    echo "   6) AdGuard"
-    read -p "DNS server [1]: " dns
-    until [[ -z "$dns" || "$dns" =~ ^[1-6]$ ]]; do
-        echo "$dns: invalid selection."
-        read -p "DNS server [1]: " dns
-    done
-    
-    case "$dns" in
-        1|"")
-            if grep '^nameserver' "/etc/resolv.conf" | grep -qv '127.0.0.53' ; then
-                resolv_conf="/etc/resolv.conf"
-            else
-                resolv_conf="/run/systemd/resolve/resolv.conf"
-            fi
-            dns=$(grep -v '^#\|^;' "$resolv_conf" | grep '^nameserver' | grep -v '127.0.0.53' | grep -oE '[0-9]{1,3}(\.[0-9]{1,3}){3}' | xargs | sed -e 's/ /, /g')
-        ;;
-        2)
-            dns="8.8.8.8, 8.8.4.4"
-        ;;
-        3)
-            dns="1.1.1.1, 1.0.0.1"
-        ;;
-        4)
-            dns="208.67.222.222, 208.67.220.220"
-        ;;
-        5)
-            dns="9.9.9.9, 149.112.112.112"
-        ;;
-        6)
-            dns="94.140.14.14, 94.140.15.15"
-        ;;
-    esac
-}
 new_client_setup() {
     octet=2
     while grep AllowedIPs /etc/wireguard/wg0.conf | cut -d "." -f 4 | cut -d "/" -f 1 | grep -q "^$octet$"; do
@@ -125,7 +85,6 @@ EOF
     cat << EOF > /etc/Wire/"$client".conf
 [Interface]
 Address = 10.7.0.$octet/24$(grep -q 'fddd:2c4:2c4:2c4::1' /etc/wireguard/wg0.conf && echo ", fddd:2c4:2c4:2c4::$octet/64")
-DNS = $dns
 PrivateKey = $key
 [Peer]
 PublicKey = $(grep PrivateKey /etc/wireguard/wg0.conf | cut -d " " -f 3 | wg pubkey)
@@ -200,8 +159,6 @@ echo '/usr/local/bin/hyper_banner.sh' >> /root/.bashrc
 # Check for WireGuard configuration
 if [[ ! -e /etc/wireguard/wg0.conf ]]; then
     install_wireguard
-    
-    new_client_dns
     default_client="LionOfJudah"
     new_client_setup
     
@@ -232,7 +189,6 @@ else
                 client=$(sed 's/[^0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-]//g' <<< "$unsanitized_client" | cut -c-15)
             done
             echo
-            new_client_dns
             new_client_setup
             wg addconf wg0 <(sed -n "/^# BEGIN_PEER $client/,/^# END_PEER $client/p" /etc/wireguard/wg0.conf)
             echo
