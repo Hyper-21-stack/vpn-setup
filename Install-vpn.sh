@@ -1,11 +1,11 @@
 #!/bin/bash
 YELLOW='\033[1;33m'
 NC='\033[0m'
-# Generate ASCII Banner
+# Generate ASCII Banner with "Lion of Judah Net"
 clear
-figlet -f slant "HyperNet" | lolcat
-echo -e "\033[1;33mHyperNet Ultimate Installer\033[0m"
-echo -e "\033[1;32m HyperNet v1.0 \033[0m"
+figlet -f slant "Lion of Judah Net" | lolcat
+echo -e "\033[1;33mLion of Judah Net Ultimate Installer\033[0m"
+echo -e "\033[1;32m Lion of Judah Net v1.0 \033[0m"
 echo
 # Check for root privileges
 if [ "$(whoami)" != "root" ]; then
@@ -202,15 +202,15 @@ if [[ ! -e /etc/wireguard/wg0.conf ]]; then
     install_wireguard
     
     new_client_dns
-    default_client="Hyper"
-    # Client setup and configuration goes here...
+    default_client="LionOfJudah"
     new_client_setup
+    
     # Enable and start the wg-quick service
     systemctl enable --now wg-quick@wg0.service
 else
     clear
-    figlet -kE "MTN" | lolcat
-    echo -e "\033[1;33mHyper Net Wireguard\033[0m"
+    figlet -kE "Lion of Judah Net" | lolcat
+    echo -e "\033[1;33mLion of Judah Net\033[0m"
     echo -e "\033[1;32mSelect an option:\033[0m"
     echo "1) Add a new client"
     echo "2) Remove an existing client"
@@ -229,7 +229,7 @@ else
             while [[ -z "$client" ]] || grep -q "^# BEGIN_PEER $client$" /etc/wireguard/wg0.conf; do
                 echo "$client: invalid name." >&2
                 read -p "Name: " unsanitized_client
-                client=$(sed 's/[^0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-]//g' <<< "$unsanitized_client" | cut -c-15)
+                client=$(sed 's/[^0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-]//g' <<< "$unsanitized_client" | cut -c-15)
             done
             echo
             new_client_dns
